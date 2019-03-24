@@ -1,7 +1,9 @@
 package cn.otote.springbootdemo.controller;
 
+import cn.otote.springbootdemo.entity.WeChatEntity;
+import cn.otote.springbootdemo.util.AesCbcUtil;
 import cn.otote.springbootdemo.util.HttpUtils;
-import com.alibaba.fastjson.JSONObject;
+import com.alibaba.fastjson.JSON;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -24,13 +26,18 @@ public class LoginController {
     static String url = "https://api.weixin.qq.com/sns/jscode2session?appid=APPID&secret=SECRET&js_code=JSCODE&grant_type=authorization_code";
 
     @PostMapping("/login")
-    public String login(@RequestBody JSONObject jsonObject) throws IOException {
-        String code = (String) jsonObject.get("code");
+    public String login(@RequestBody WeChatEntity weChatEntity) throws IOException {
+        String code = weChatEntity.getCode();
 
         String finalUrl =getUrl().replace("JSCODE",code);
         String result = HttpUtils.get(finalUrl);
         System.out.println(result);
-        return result;
+
+        WeChatEntity weChat = JSON.parseObject(result, WeChatEntity.class);
+
+        decodeUserInfo(weChatEntity.getEncryptedData(),weChat.getSession_key(),weChatEntity.getIv());
+
+        return JSON.toJSONString(weChat);
     }
 
     public static String getUrl(){
@@ -40,4 +47,15 @@ public class LoginController {
     }
 
 
+    public void decodeUserInfo(String encryptedData,String sessionKey, String iv){
+        try {
+            String decrypt = AesCbcUtil.decrypt(encryptedData, sessionKey, iv, "UTF-8");
+            System.out.println("----------");
+            System.out.println(decrypt);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+
+    }
 }
